@@ -1,7 +1,55 @@
 import pandas as pd
 import numpy as np
 import sklearn.neighbors
+import scipy.sparse as sp
+import seaborn as sns
+import matplotlib.pyplot as plt
 
+import torch
+from torch_geometric.data import Data
+
+def Transfer_pytorch_Data(adata):
+    G_df = adata.uns['Spatial_Net'].copy()
+    cells = np.array(adata.obs_names)
+    cells_id_tran = dict(zip(cells, range(cells.shape[0])))
+    G_df['Cell1'] = G_df['Cell1'].map(cells_id_tran)
+    G_df['Cell2'] = G_df['Cell2'].map(cells_id_tran)
+
+    G = sp.coo_matrix((np.ones(G_df.shape[0]), (G_df['Cell1'], G_df['Cell2'])), shape=(adata.n_obs, adata.n_obs))
+    G = G + sp.eye(G.shape[0])
+
+    edgeList = np.nonzero(G)
+    if type(adata.X) == np.ndarray:
+        data = Data(edge_index=torch.LongTensor(np.array(
+            [edgeList[0], edgeList[1]])), x=torch.FloatTensor(adata.X))  # .todense()
+    else:
+        data = Data(edge_index=torch.LongTensor(np.array(
+            [edgeList[0], edgeList[1]])), x=torch.FloatTensor(adata.X.todense()))  # .todense()
+    return data
+
+def Batch_Data(adata, num_batch_x, num_batch_y, spatial_key=['X', 'Y'], plot_Stats=False):
+    Sp_df = adata.obs.loc[:, spatial_key].copy()
+    Sp_df = np.array(Sp_df)
+    batch_x_coor = [np.percentile(Sp_df[:, 0], (1/num_batch_x)*x*100) for x in range(num_batch_x+1)]
+    batch_y_coor = [np.percentile(Sp_df[:, 1], (1/num_batch_y)*x*100) for x in range(num_batch_y+1)]
+
+    Batch_list = []
+    for it_x in range(num_batch_x):
+        for it_y in range(num_batch_y):
+            min_x = batch_x_coor[it_x]
+            max_x = batch_x_coor[it_x+1]
+            min_y = batch_y_coor[it_y]
+            max_y = batch_y_coor[it_y+1]
+            temp_adata = adata.copy()
+            temp_adata = temp_adata[temp_adata.obs[spatial_key[0]].map(lambda x: min_x <= x <= max_x)]
+            temp_adata = temp_adata[temp_adata.obs[spatial_key[1]].map(lambda y: min_y <= y <= max_y)]
+            Batch_list.append(temp_adata)
+    if plot_Stats:
+        f, ax = plt.subplots(figsize=(1, 3))
+        plot_df = pd.DataFrame([x.shape[0] for x in Batch_list], columns=['#spot/batch'])
+        sns.boxplot(y='#spot/batch', data=plot_df, ax=ax)
+        sns.stripplot(y='#spot/batch', data=plot_df, ax=ax, color='red', size=5)
+    return Batch_list
 
 def Cal_Spatial_Net(adata, rad_cutoff=None, k_cutoff=None, model='Radius', verbose=True):
     """\

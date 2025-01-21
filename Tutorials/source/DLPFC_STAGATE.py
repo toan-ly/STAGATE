@@ -45,11 +45,11 @@ def main():
     data_names = os.listdir(data_path)
     data_names = [i for i in data_names if i.isdigit()]
     
-    device = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:5' if torch.cuda.is_available() else 'cpu')
     for section_id in data_names:
         # Already processed the remaining
-        if section_id != '151673':
-            continue
+        # if section_id != '151673':
+        #     continue
         
         print(f'Processing {section_id}...')
         n_clusters = 5 if section_id in ['151669','151670','151671','151672'] else 7 
@@ -97,34 +97,34 @@ def main():
         print('Adjusted rand index = %.2f' %ARI)
 
         ## Save UMAP
-        plt.rcParams["figure.figsize"] = (4, 3)
-        sc.pl.umap(adata, color=["Ground Truth", "mclust"], title=["Ground Truth", 'STAGATE (ARI=%.2f)'%ARI])
+        # plt.rcParams["figure.figsize"] = (4, 3)
+        # sc.pl.umap(adata, color=["Ground Truth", "mclust"], title=["Ground Truth", 'STAGATE (ARI=%.2f)'%ARI], frameon=False)
 
-        # fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-        # sc.pl.umap(adata, color='Ground Truth', ax=axes[0], show=False)
-        # sc.pl.umap(adata, color='mclust', ax=axes[1], show=False)
-        # axes[0].set_title('Ground Truth')
-        # axes[1].set_title('STAGATE Clustering')
+        fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+        sc.pl.umap(adata, color='Ground Truth', ax=axes[0], show=False)
+        sc.pl.umap(adata, color='mclust', ax=axes[1], show=False)
+        axes[0].set_title('Ground Truth')
+        axes[1].set_title(f'STAGATE (ARI={ARI:.2f})')
 
-        # for ax in axes:
-        #     ax.set_aspect(1)
+        for ax in axes:
+            ax.set_aspect(1)
 
-        # plt.tight_layout()
-        plt.savefig(os.path.join(dir_out, f'{section_id}_umap.png'), bbox_inches='tight', dpi=300)
+        plt.tight_layout()
+        plt.savefig(os.path.join(dir_out, 'umap.png'), dpi=300)
         # plt.close()
         
 
         plt.rcParams["figure.figsize"] = (4, 3)
         sc.pl.spatial(adata, color=["Ground Truth", "mclust"], title=['Ground Truth', 'STAGATE (ARI=%.2f)'%ARI])
-        plt.savefig(os.path.join(dir_out, f'{section_id}_domains.png'), bbox_inches='tight', dpi=300)
+        plt.savefig(os.path.join(dir_out, 'spatial_clustering.png'), bbox_inches='tight', dpi=300)
 
         ## Save results
         adata.obs['STAGATE'] = adata.obs['mclust']
-        adata.write(f'{dir_out}/result.h5ad')
-        adata.obs.to_csv(f'{dir_out}/metadata.tsv', sep='\t')
+        # adata.write(f'{dir_out}/result.h5ad')
+        # adata.obs.to_csv(f'{dir_out}/metadata.tsv', sep='\t')
 
-        df = pd.DataFrame(data=adata.obsm['STAGATE'], index=adata.obs.index)
-        df.to_csv(f'{dir_out}/PCs.tsv', sep='\t')
+        # df = pd.DataFrame(data=adata.obsm['STAGATE'], index=adata.obs.index)
+        # df.to_csv(f'{dir_out}/PCs.tsv', sep='\t')
         
         ## Save the trajectory
         # used_adata = adata[adata.obs['Ground Truth']!='nan',]
